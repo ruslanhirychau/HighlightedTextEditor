@@ -16,7 +16,7 @@ public typealias SymbolicTraits = NSFontDescriptor.SymbolicTraits
 public typealias SystemTextView = NSTextView
 public typealias SystemScrollView = NSScrollView
 
-let defaultEditorFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+let defaultEditorFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
 let defaultEditorTextColor = NSColor.labelColor
 
 #else
@@ -28,7 +28,7 @@ public typealias SymbolicTraits = UIFontDescriptor.SymbolicTraits
 public typealias SystemTextView = UITextView
 public typealias SystemScrollView = UIScrollView
 
-let defaultEditorFont = UIFont.preferredFont(forTextStyle: .body)
+let defaultEditorFont = UIFont.monospacedSystemFont(ofSize: UIFont.systemFontSize, weight: .regular)
 let defaultEditorTextColor = UIColor.label
 
 #endif

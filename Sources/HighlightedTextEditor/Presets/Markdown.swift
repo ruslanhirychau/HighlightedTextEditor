@@ -60,16 +60,7 @@ public extension Sequence where Iterator.Element == HighlightRule {
         [
             HighlightRule(pattern: inlineCodeRegex, formattingRule: TextFormattingRule(key: .font, value: codeFont), isExclusive: true),
             HighlightRule(pattern: codeBlockRegex, formattingRule: TextFormattingRule(key: .font, value: codeFont), isExclusive: true),
-            HighlightRule(pattern: headingRegex, formattingRules: [
-                TextFormattingRule(fontTraits: headingTraits),
-                TextFormattingRule(key: .kern, value: 0.5),
-                TextFormattingRule(key: .font, calculateValue: { content, _ in
-                    let uncappedLevel = content.prefix(while: { char in char == "#" }).count
-                    let level = Swift.min(maxHeadingLevel, uncappedLevel)
-                    let fontSize = CGFloat(maxHeadingLevel - level) * 2.5 + defaultEditorFont.pointSize
-                    return SystemFontAlias(descriptor: defaultEditorFont.fontDescriptor, size: fontSize) as Any
-                })
-            ]),
+            HighlightRule(pattern: headingRegex, formattingRule: TextFormattingRule(fontTraits: boldTraits)),
             HighlightRule(
                 pattern: linkOrImageRegex,
                 formattingRule: TextFormattingRule(key: .underlineStyle, value: NSUnderlineStyle.single.rawValue)
