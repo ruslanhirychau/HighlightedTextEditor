@@ -58,8 +58,8 @@ private let maxHeadingLevel = 6
 public extension Sequence where Iterator.Element == HighlightRule {
     static var markdown: [HighlightRule] {
         [
-            HighlightRule(pattern: inlineCodeRegex, formattingRule: TextFormattingRule(key: .font, value: codeFont)),
-            HighlightRule(pattern: codeBlockRegex, formattingRule: TextFormattingRule(key: .font, value: codeFont)),
+            HighlightRule(pattern: inlineCodeRegex, formattingRule: TextFormattingRule(key: .font, value: codeFont), isExclusive: true),
+            HighlightRule(pattern: codeBlockRegex, formattingRule: TextFormattingRule(key: .font, value: codeFont), isExclusive: true),
             HighlightRule(pattern: headingRegex, formattingRules: [
                 TextFormattingRule(fontTraits: headingTraits),
                 TextFormattingRule(key: .kern, value: 0.5),

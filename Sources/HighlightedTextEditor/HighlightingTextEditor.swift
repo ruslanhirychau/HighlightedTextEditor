@@ -69,20 +69,23 @@ public struct TextFormattingRule {
 
 public struct HighlightRule {
     let pattern: NSRegularExpression
-
     let formattingRules: [TextFormattingRule]
+    /// Если true — совпадения этого правила блокируют применение других правил на тех же диапазонах.
+    /// Используется для блоков кода, чтобы внутри них не срабатывал italic, bold и т.д.
+    let isExclusive: Bool
 
     // ------------------- convenience ------------------------
 
-    public init(pattern: NSRegularExpression, formattingRule: TextFormattingRule) {
-        self.init(pattern: pattern, formattingRules: [formattingRule])
+    public init(pattern: NSRegularExpression, formattingRule: TextFormattingRule, isExclusive: Bool = false) {
+        self.init(pattern: pattern, formattingRules: [formattingRule], isExclusive: isExclusive)
     }
 
     // ------------------ most powerful initializer ------------------
 
-    public init(pattern: NSRegularExpression, formattingRules: [TextFormattingRule]) {
+    public init(pattern: NSRegularExpression, formattingRules: [TextFormattingRule], isExclusive: Bool = false) {
         self.pattern = pattern
         self.formattingRules = formattingRules
+        self.isExclusive = isExclusive
     }
 }
 
@@ -111,9 +114,17 @@ extension HighlightingTextEditor {
         highlightedString.addAttribute(.font, value: editorFont, range: all)
         highlightedString.addAttribute(.foregroundColor, value: editorTextColor, range: all)
 
+        let exclusionZones: [NSRange] = highlightRules
+            .filter { $0.isExclusive }
+            .flatMap { rule in rule.pattern.matches(in: text, options: [], range: all).map { $0.range } }
+
         highlightRules.forEach { rule in
             let matches = rule.pattern.matches(in: text, options: [], range: all)
             matches.forEach { match in
+                if !rule.isExclusive {
+                    let isExcluded = exclusionZones.contains { NSIntersectionRange($0, match.range).length > 0 }
+                    if isExcluded { return }
+                }
                 rule.formattingRules.forEach { formattingRule in
 
                     var font = SystemFontAlias()
