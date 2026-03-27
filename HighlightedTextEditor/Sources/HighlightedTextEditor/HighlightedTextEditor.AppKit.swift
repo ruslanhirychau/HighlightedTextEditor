@@ -55,6 +55,7 @@ public struct HighlightedTextEditor: NSViewRepresentable, HighlightingTextEditor
     public func updateNSView(_ view: ScrollableTextView, context: Context) {
         context.coordinator.updatingNSView = true
         let typingAttributes = view.textView.typingAttributes
+        let textChanged = view.textView.string != text
 
         let highlightedText = HighlightedTextEditor.getHighlightedText(
             text: text,
@@ -63,7 +64,11 @@ public struct HighlightedTextEditor: NSViewRepresentable, HighlightingTextEditor
 
         view.attributedText = highlightedText
         runIntrospect(view)
-        view.selectedRanges = context.coordinator.selectedRanges
+        // Only restore selectedRanges when actual text content changed;
+        // attribute-only updates preserve cursor position automatically
+        if textChanged {
+            view.selectedRanges = context.coordinator.selectedRanges
+        }
         view.textView.typingAttributes = typingAttributes
         context.coordinator.updatingNSView = false
     }
@@ -139,7 +144,20 @@ public extension HighlightedTextEditor {
 
         var attributedText: NSAttributedString {
             didSet {
-                textView.textStorage?.setAttributedString(attributedText)
+                guard let textStorage = textView.textStorage else { return }
+                // If only attributes changed (same text), update attributes in-place
+                // to avoid layout recomputation and cursor jumping
+                if textStorage.string == attributedText.string {
+                    let fullRange = NSRange(location: 0, length: textStorage.length)
+                    textStorage.beginEditing()
+                    textStorage.setAttributes([:], range: fullRange)
+                    attributedText.enumerateAttributes(in: fullRange, options: []) { attrs, range, _ in
+                        textStorage.addAttributes(attrs, range: range)
+                    }
+                    textStorage.endEditing()
+                } else {
+                    textStorage.setAttributedString(attributedText)
+                }
             }
         }
 
@@ -192,6 +210,7 @@ public extension HighlightedTextEditor {
             textView.minSize = NSSize(width: 0, height: contentSize.height)
             textView.textColor = NSColor.labelColor
             textView.allowsUndo = true
+            textView.textContainerInset = NSSize(width: 0, height: 40)
 
             return textView
         }()
@@ -233,6 +252,23 @@ public extension HighlightedTextEditor {
 
         func setupTextView() {
             scrollView.documentView = textView
+        }
+
+        override public func layout() {
+            super.layout()
+            let w = bounds.width
+            let padding: CGFloat
+            if w < 400 {
+                padding = 12
+            } else if w < 800 {
+                padding = 40
+            } else {
+                padding = max(40, w * 0.15)
+            }
+            let newInset = NSSize(width: padding, height: 40)
+            if textView.textContainerInset != newInset {
+                textView.textContainerInset = newInset
+            }
         }
     }
 }

@@ -16,7 +16,18 @@ public typealias SymbolicTraits = NSFontDescriptor.SymbolicTraits
 public typealias SystemTextView = NSTextView
 public typealias SystemScrollView = NSScrollView
 
-let defaultEditorFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+public let editorFontSizeKey = "editorFontSize"
+public let editorFontSizeDefault: CGFloat = 14
+public let editorParagraphSpacingKey = "editorParagraphSpacing"
+public let editorParagraphSpacingDefault: CGFloat = 0
+public let editorLineHeightKey = "editorLineHeight"
+public let editorLineHeightDefault: CGFloat = 1.0
+
+var defaultEditorFont: NSFont {
+    let stored = UserDefaults.standard.double(forKey: editorFontSizeKey)
+    let size = stored > 0 ? CGFloat(stored) : editorFontSizeDefault
+    return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+}
 let defaultEditorTextColor = NSColor.labelColor
 
 #else
@@ -28,7 +39,18 @@ public typealias SymbolicTraits = UIFontDescriptor.SymbolicTraits
 public typealias SystemTextView = UITextView
 public typealias SystemScrollView = UIScrollView
 
-let defaultEditorFont = UIFont.monospacedSystemFont(ofSize: UIFont.systemFontSize, weight: .regular)
+public let editorFontSizeKey = "editorFontSize"
+public let editorFontSizeDefault: CGFloat = 14
+public let editorParagraphSpacingKey = "editorParagraphSpacing"
+public let editorParagraphSpacingDefault: CGFloat = 0
+public let editorLineHeightKey = "editorLineHeight"
+public let editorLineHeightDefault: CGFloat = 1.0
+
+var defaultEditorFont: UIFont {
+    let stored = UserDefaults.standard.double(forKey: editorFontSizeKey)
+    let size = stored > 0 ? CGFloat(stored) : editorFontSizeDefault
+    return UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+}
 let defaultEditorTextColor = UIColor.label
 
 #endif
@@ -73,19 +95,22 @@ public struct HighlightRule {
     /// Если true — совпадения этого правила блокируют применение других правил на тех же диапазонах.
     /// Используется для блоков кода, чтобы внутри них не срабатывал italic, bold и т.д.
     let isExclusive: Bool
+    /// Если true — правило применяется даже внутри exclusive-зон (например, внутри кода).
+    let ignoresExclusion: Bool
 
     // ------------------- convenience ------------------------
 
-    public init(pattern: NSRegularExpression, formattingRule: TextFormattingRule, isExclusive: Bool = false) {
-        self.init(pattern: pattern, formattingRules: [formattingRule], isExclusive: isExclusive)
+    public init(pattern: NSRegularExpression, formattingRule: TextFormattingRule, isExclusive: Bool = false, ignoresExclusion: Bool = false) {
+        self.init(pattern: pattern, formattingRules: [formattingRule], isExclusive: isExclusive, ignoresExclusion: ignoresExclusion)
     }
 
     // ------------------ most powerful initializer ------------------
 
-    public init(pattern: NSRegularExpression, formattingRules: [TextFormattingRule], isExclusive: Bool = false) {
+    public init(pattern: NSRegularExpression, formattingRules: [TextFormattingRule], isExclusive: Bool = false, ignoresExclusion: Bool = false) {
         self.pattern = pattern
         self.formattingRules = formattingRules
         self.isExclusive = isExclusive
+        self.ignoresExclusion = ignoresExclusion
     }
 }
 
@@ -114,6 +139,17 @@ extension HighlightingTextEditor {
         highlightedString.addAttribute(.font, value: editorFont, range: all)
         highlightedString.addAttribute(.foregroundColor, value: editorTextColor, range: all)
 
+        let storedPS = UserDefaults.standard.double(forKey: editorParagraphSpacingKey)
+        let paragraphSpacing = storedPS > 0 ? CGFloat(storedPS) : editorParagraphSpacingDefault
+        let storedLH = UserDefaults.standard.double(forKey: editorLineHeightKey)
+        let lineHeight = storedLH > 0 ? CGFloat(storedLH) : editorLineHeightDefault
+        if paragraphSpacing > 0 || lineHeight > 1.0 {
+            let para = NSMutableParagraphStyle()
+            if paragraphSpacing > 0 { para.paragraphSpacing = paragraphSpacing }
+            if lineHeight > 1.0 { para.lineHeightMultiple = lineHeight }
+            highlightedString.addAttribute(.paragraphStyle, value: para, range: all)
+        }
+
         let exclusionZones: [NSRange] = highlightRules
             .filter { $0.isExclusive }
             .flatMap { rule in rule.pattern.matches(in: text, options: [], range: all).map { $0.range } }
@@ -121,8 +157,16 @@ extension HighlightingTextEditor {
         highlightRules.forEach { rule in
             let matches = rule.pattern.matches(in: text, options: [], range: all)
             matches.forEach { match in
-                if !rule.isExclusive {
-                    let isExcluded = exclusionZones.contains { NSIntersectionRange($0, match.range).length > 0 }
+                if !rule.isExclusive && !rule.ignoresExclusion {
+                    // Skip if match overlaps an exclusion zone, UNLESS the match fully contains it
+                    // (e.g. a heading line containing inline code should still get bold)
+                    let isExcluded = exclusionZones.contains { zone in
+                        let intersection = NSIntersectionRange(zone, match.range)
+                        guard intersection.length > 0 else { return false }
+                        let matchContainsZone = match.range.location <= zone.location &&
+                            (match.range.location + match.range.length) >= (zone.location + zone.length)
+                        return !matchContainsZone
+                    }
                     if isExcluded { return }
                 }
                 rule.formattingRules.forEach { formattingRule in
