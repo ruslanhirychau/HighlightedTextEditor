@@ -211,6 +211,12 @@ public extension HighlightedTextEditor {
             textView.textColor = NSColor.labelColor
             textView.allowsUndo = true
             textView.textContainerInset = NSSize(width: 0, height: 40)
+            // Plain-text editing: smart substitutions corrupt prompt content
+            // (curly quotes break JSON/code samples and the highlight rules)
+            textView.isAutomaticQuoteSubstitutionEnabled = false
+            textView.isAutomaticDashSubstitutionEnabled = false
+            textView.isAutomaticTextReplacementEnabled = false
+            textView.isAutomaticSpellingCorrectionEnabled = false
 
             return textView
         }()

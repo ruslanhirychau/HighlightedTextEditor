@@ -170,12 +170,12 @@ public extension Sequence where Iterator.Element == HighlightRule {
                 formattingRule: TextFormattingRule(key: .foregroundColor, value: ck), ignoresExclusion: true))
         }
 
-        // Quotes & brackets in regular text (non-exclusive, blocked inside code)
+        // Quotes & brackets in regular text (non-exclusive, blocked inside code).
+        // Single quotes are deliberately excluded here: apostrophes (don't, it's)
+        // would pair up and recolor everything between them.
         var textQuoteBracketRules: [HighlightRule] = []
         if let sc = theme.stringColor {
             textQuoteBracketRules.append(HighlightRule(pattern: doubleQuoteRegex,
-                formattingRule: TextFormattingRule(key: .foregroundColor, value: sc)))
-            textQuoteBracketRules.append(HighlightRule(pattern: singleQuoteRegex,
                 formattingRule: TextFormattingRule(key: .foregroundColor, value: sc)))
         }
         if let bc = theme.bracketColor {

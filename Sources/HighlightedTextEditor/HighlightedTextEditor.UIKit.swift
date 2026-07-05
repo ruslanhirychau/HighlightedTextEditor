@@ -44,6 +44,12 @@ public struct HighlightedTextEditor: UIViewRepresentable, HighlightingTextEditor
     public func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
         textView.delegate = context.coordinator
+        // Plain-text editing: smart substitutions corrupt prompt content
+        // (curly quotes break JSON/code samples and the highlight rules)
+        textView.smartQuotesType = .no
+        textView.smartDashesType = .no
+        textView.smartInsertDeleteType = .no
+        textView.autocorrectionType = .no
         updateTextViewModifiers(textView)
         runIntrospect(textView)
 
